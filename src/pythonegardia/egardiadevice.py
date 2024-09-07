@@ -182,6 +182,44 @@ class EgardiaDevice(object):
         else:
             return None
 
+    def getlockstate(self, door_id):
+        sensor = self.getsensor(door_id)
+        # Locks confusingly uses the same strings to indicate state as door sensors
+        if sensor['status'].upper() == "DOOR CLOSE":
+            return "locked"
+        elif sensor['status'].upper() == "DOOR OPEN":
+            return "unlocked"
+        else:
+            return "unknown"
+
+    def getlocks(self):
+        locks = {}
+        sensors = self.getsensors()
+        # type doesn't seem to be reliable, so we use the name instead
+        for sensor_id, sensor in sensors.items():
+            if "Door Lock" in sensor['type']:
+                locks[sensor_id] = sensor
+        return locks
+
+    def set_lock_state(self, door_id, state):
+        """Lock or unlock the door"""
+        sensor = self.getsensor(door_id)
+        if state.lower() == "lock":
+            payload = {'id': door_id, 'switch': '1'}
+        elif state.lower() == "unlock":
+            payload = {'id': door_id, 'switch': '0'}
+        else:
+            raise ValueError("Invalid state. Use 'lock' or 'unlock'.")
+        try:
+            response = self.dorequestwithretry('POST', 'deviceSwitchPSSPost', 1, payload)
+            if "result : 1" in response:
+                return True
+            else:
+                return False
+        except:
+            raise
+
+
     def dorequest(self, requesttype, action, payload=None):
         """Execute an request against the alarm panel"""
         import requests
